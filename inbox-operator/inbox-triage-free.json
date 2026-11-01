@@ -1,0 +1,236 @@
+{
+  "name": "01 \u00b7 Inbox Triage",
+  "nodes": [
+    {
+      "id": "6fedba50-348f-48b2-8f4d-e96df72c5918",
+      "name": "Read Me",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -340
+      ],
+      "parameters": {
+        "content": "## 01 \u00b7 Inbox Triage\nEvery 5 minutes, new unread mail is sorted into one of five buckets (urgent, lead, billing, newsletter, other) and labelled in Gmail.\n\n**Setup:** create 5 Gmail labels, then paste each label ID into **Config** (Gmail > Settings > Labels, or run a Gmail 'Get many labels' node once).\n\n**Credentials:** open each node with a red warning and pick or create your own Gmail OAuth2, Google Sheets OAuth2 and OpenAI credentials. Nothing is hard-coded. Test with your own address before you activate.",
+        "width": 560,
+        "height": 300
+      }
+    },
+    {
+      "id": "5e9a6913-ff6c-4229-af4a-e17404cc4e0f",
+      "name": "New Mail",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        100
+      ],
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyX",
+              "value": 5,
+              "unit": "minutes"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {
+          "q": "is:unread in:inbox -label:triaged"
+        },
+        "options": {}
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "id": "d60dadcb-3e54-465b-a28f-b6eb8b4068bb",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        100
+      ],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "7edad5f9-ffcf-4669-90d8-fb0c08c94b27",
+              "name": "LABEL_URGENT",
+              "value": "REPLACE_LABEL_ID",
+              "type": "string"
+            },
+            {
+              "id": "1764c3d9-1097-4c40-92cb-e3c5aaf9fbb8",
+              "name": "LABEL_LEAD",
+              "value": "REPLACE_LABEL_ID",
+              "type": "string"
+            },
+            {
+              "id": "37da5cd5-e0f5-4e91-9691-e4c5ffe699bc",
+              "name": "LABEL_BILLING",
+              "value": "REPLACE_LABEL_ID",
+              "type": "string"
+            },
+            {
+              "id": "f9e65b83-88ca-4591-98dd-11640ae81c90",
+              "name": "LABEL_NEWSLETTER",
+              "value": "REPLACE_LABEL_ID",
+              "type": "string"
+            },
+            {
+              "id": "5b3ca2c7-34da-4207-89d4-b4af1bb83e60",
+              "name": "LABEL_OTHER",
+              "value": "REPLACE_LABEL_ID",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "1c035b77-e5be-4d6f-8ee0-3f7b894b11db",
+      "name": "Classify",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\"model\": \"gpt-4o-mini\", \"temperature\": 0.2, \"messages\": [{\"role\": \"system\", \"content\": \"You sort business email. Reply as JSON: {\\\"category\\\": one of urgent|lead|billing|newsletter|other, \\\"reason\\\": short string}. urgent = a customer or partner needs action today. lead = someone asking to buy, hire or get a quote. billing = invoices, receipts, payments. newsletter = bulk or marketing mail.\"}, {\"role\": \"user\", \"content\": JSON.stringify({ from: $json.from?.text || $json.from, subject: $json.subject, body: ($json.text || $json.snippet || '').slice(0, 4000) })}], \"response_format\": {\"type\": \"json_object\"}} }}",
+        "options": {}
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "id": "ef3da515-fa22-4d3d-bed0-7b33bc7748d6",
+      "name": "Parse",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        100
+      ],
+      "parameters": {
+        "jsCode": "// Parse the model's JSON answer and keep the original email fields\nreturn $input.all().map((item, i) => {\n  let out = {};\n  try { out = JSON.parse(item.json.choices[0].message.content); } catch (e) { out = { parse_error: true }; }\n  const src = $('New Mail').all()[i]?.json || {};\n  return { json: { ...out, messageId: src.id, threadId: src.threadId, from: src.from?.text || src.from, subject: src.subject, snippet: (src.text || src.snippet || '').slice(0, 2000) } };\n});\n"
+      }
+    },
+    {
+      "id": "79e4d963-5bcb-4b2c-a359-dc45c2cd1f74",
+      "name": "Pick Label",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        100
+      ],
+      "parameters": {
+        "jsCode": "const c = $('Config').first().json;\nconst map = { urgent: c.LABEL_URGENT, lead: c.LABEL_LEAD, billing: c.LABEL_BILLING, newsletter: c.LABEL_NEWSLETTER };\nreturn $input.all().map(i => ({ json: { ...i.json, labelId: map[i.json.category] || c.LABEL_OTHER } }));"
+      }
+    },
+    {
+      "id": "4d6021a7-ee9f-4c09-a67b-dd78c08a75e2",
+      "name": "Apply Label",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1100,
+        100
+      ],
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $json.messageId }}",
+        "labelIds": "={{ [$json.labelId] }}"
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "New Mail": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Classify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify": {
+      "main": [
+        [
+          {
+            "node": "Parse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse": {
+      "main": [
+        [
+          {
+            "node": "Pick Label",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pick Label": {
+      "main": [
+        [
+          {
+            "node": "Apply Label",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false
+}

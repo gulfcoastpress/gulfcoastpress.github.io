@@ -1,0 +1,399 @@
+{
+  "name": "Sort website leads by urgency with OpenAI and alert on urgent jobs",
+  "nodes": [
+    {
+      "id": "4cbaa309-9a45-409e-bbef-fd5b06279e65",
+      "name": "Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -560,
+        -260
+      ],
+      "parameters": {
+        "content": "## Sort website leads by urgency and alert on the urgent ones\n\n### How it works\nBuilt for local trades (plumbing, HVAC, roofing, pool, lawn). A website form posts each new lead to the Webhook. OpenAI reads the request and labels it HOT, WARM or COLD, where HOT means something urgent like a leak, no AC or an open roof. Every lead is logged to a Google Sheet. HOT leads also send you an email right away so a burst pipe never waits behind a gutter quote. If the AI call fails, the lead is still logged with score COLD so nothing is lost.\n\n### Setup\n1. Make a Google Sheet with a tab named `CRM` and columns: id, date, name, email, phone, service, source, score, status, notes.\n2. In **Log Lead to Sheet**, pick your Google Sheets credential and replace REPLACE_WITH_SPREADSHEET_ID with your sheet ID.\n3. In **Score Lead Urgency**, pick your OpenAI credential. OpenAI bills per use; set a spending limit.\n4. In **Edit These Settings**, set your email and trade.\n5. In **Email Owner About Urgent Lead**, pick your Gmail credential.\n6. Point your form at the production webhook URL. It expects JSON: name, email, phone, service, message.\n\n### Customization\nChange what counts as HOT in the prompt. Swap the email for a Slack or Telegram node.",
+        "width": 420,
+        "height": 760
+      }
+    },
+    {
+      "id": "dbe5b67a-9ff0-41d8-8343-fc8b5a198b0f",
+      "name": "Section: Intake",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -150,
+        -60
+      ],
+      "parameters": {
+        "content": "## Intake and settings\nReceives the form post and adds your settings.",
+        "width": 420,
+        "height": 320,
+        "color": 7
+      }
+    },
+    {
+      "id": "d4ccf8c6-74e3-4771-8049-bbc05a857d79",
+      "name": "Section: Score",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        290,
+        -60
+      ],
+      "parameters": {
+        "content": "## Score and log\nAI labels urgency; every lead is saved to the sheet.",
+        "width": 640,
+        "height": 320,
+        "color": 7
+      }
+    },
+    {
+      "id": "b1a9c200-0871-45e2-9a9c-a6fe4d53c20d",
+      "name": "Section: Alert",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        950,
+        -100
+      ],
+      "parameters": {
+        "content": "## Alert on urgent leads\nOnly HOT leads email you.",
+        "width": 420,
+        "height": 360,
+        "color": 7
+      }
+    },
+    {
+      "id": "cf3901f1-7cbb-4455-9465-bd2fa97e2db5",
+      "name": "Receive Form Lead",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -110,
+        100
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-intake",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "webhookId": "f39d0a8e-14fe-4bfd-b0a1-9e9c6bd56cbc"
+    },
+    {
+      "id": "c7549f0f-42a3-416f-b594-5503ef7bee54",
+      "name": "Score Lead Urgency",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        330,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({model:\"gpt-4o-mini\",messages:[{role:\"user\",content:\"Score this inbound lead for a local \"+$json.trade+\" business as HOT, WARM or COLD. HOT means urgent: water, gas, no heat or AC, roof open to weather. Reply with ONE word only. Lead: \"+JSON.stringify($json.body)}]}) }}",
+        "options": {}
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "REPLACE",
+          "name": "OpenAI account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "869d40c8-7dde-46f8-b89f-9e99569c8fbd",
+      "name": "Build CRM Row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        550,
+        100
+      ],
+      "parameters": {
+        "jsCode": "return $input.all().map((it,i)=>{const b=$(\"Receive Form Lead\").all()[i].json.body;const s=(it.json.choices?.[0]?.message?.content||\"COLD\").trim().toUpperCase().split(/\\W/)[0];return {json:{id:Date.now().toString()+i,date:new Date().toISOString(),name:b.name,email:b.email,phone:b.phone,service:b.service,source:\"webform\",score:s,status:\"new\",notes:b.message}}});"
+      }
+    },
+    {
+      "id": "f171f8ba-a96d-43ed-8197-94689b5c70da",
+      "name": "Log Lead to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        770,
+        100
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_WITH_SPREADSHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "CRM"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $json.id }}",
+            "date": "={{ $json.date }}",
+            "name": "={{ $json.name }}",
+            "email": "={{ $json.email }}",
+            "phone": "={{ $json.phone }}",
+            "service": "={{ $json.service }}",
+            "source": "={{ $json.source }}",
+            "score": "={{ $json.score }}",
+            "status": "={{ $json.status }}",
+            "notes": "={{ $json.notes }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "service",
+              "displayName": "service",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "score",
+              "displayName": "score",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "notes",
+              "displayName": "notes",
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "9105eeaf-970d-4b19-ad05-4a42e7bd928e",
+      "name": "Is It Urgent?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        990,
+        100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "3b37d7f9-28ca-49c4-a9f4-3281aef56eb9",
+              "leftValue": "={{ $('Build CRM Row').item.json.score }}",
+              "rightValue": "HOT",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "cdda57cc-82df-4bc2-90c2-3f3a4fd7395d",
+      "name": "Email Owner About Urgent Lead",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1210,
+        20
+      ],
+      "parameters": {
+        "sendTo": "={{ $('Edit These Settings').item.json.ownerEmail }}",
+        "subject": "=HOT lead: {{ $('Build CRM Row').item.json.name }} \u2014 {{ $('Build CRM Row').item.json.service }}",
+        "emailType": "text",
+        "message": "=Name: {{ $('Build CRM Row').item.json.name }}\nPhone: {{ $('Build CRM Row').item.json.phone }}\nEmail: {{ $('Build CRM Row').item.json.email }}\nMessage: {{ $('Build CRM Row').item.json.notes }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE",
+          "name": "Gmail account"
+        }
+      },
+      "webhookId": "9facbf60-e143-409c-a86b-dcf382344dee"
+    },
+    {
+      "id": "158c383c-35f9-4c18-a37d-8e8aa0d15790",
+      "name": "Edit These Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        110,
+        100
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "32a8f948-535c-459f-aeb0-7e2193c2ec2a",
+              "name": "ownerEmail",
+              "value": "you@yourbusiness.com",
+              "type": "string"
+            },
+            {
+              "id": "03e268b6-83b5-4bd4-84ca-fcc6c253724e",
+              "name": "trade",
+              "value": "plumbing",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Receive Form Lead": {
+      "main": [
+        [
+          {
+            "node": "Edit These Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit These Settings": {
+      "main": [
+        [
+          {
+            "node": "Score Lead Urgency",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score Lead Urgency": {
+      "main": [
+        [
+          {
+            "node": "Build CRM Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build CRM Row": {
+      "main": [
+        [
+          {
+            "node": "Log Lead to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Lead to Sheet": {
+      "main": [
+        [
+          {
+            "node": "Is It Urgent?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is It Urgent?": {
+      "main": [
+        [
+          {
+            "node": "Email Owner About Urgent Lead",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

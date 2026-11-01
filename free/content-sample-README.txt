@@ -25,7 +25,7 @@ WHAT THE PAID PACK ADDS (The Content Engine, $199)
 - A Sunday Mon–Fri content plan
 https://payhip.com/b/jBWVy
 
-Everything: The Operator Suite, all 21 workflows, $399: https://payhip.com/b/FG4vy
+Everything: The Operator Suite, all 21 workflows, $249: https://payhip.com/b/FG4vy
 
 Questions: gavindimartino3@gmail.com
 

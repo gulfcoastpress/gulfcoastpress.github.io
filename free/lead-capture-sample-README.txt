@@ -25,7 +25,7 @@ WHAT THE PAID PACK ADDS (The Follow-Up Engine, $199)
 - Weekly pipeline report and an opt-out guard
 https://payhip.com/b/Wb8st
 
-Everything: The Operator Suite, all 21 workflows, $399: https://payhip.com/b/FG4vy
+Everything: The Operator Suite, all 21 workflows, $249: https://payhip.com/b/FG4vy
 
 Questions: gavindimartino3@gmail.com
 

@@ -22,7 +22,7 @@ WHAT THE PAID PACK ADDS (The Inbox Operator, $149)
 - Follow-up nudges and a morning brief
 https://payhip.com/b/syg6m
 
-Everything: The Operator Suite, all 21 workflows, $399: https://payhip.com/b/FG4vy
+Everything: The Operator Suite, all 21 workflows, $249: https://payhip.com/b/FG4vy
 
 Questions: gavindimartino3@gmail.com
 

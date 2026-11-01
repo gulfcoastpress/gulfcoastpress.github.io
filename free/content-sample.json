@@ -103,7 +103,7 @@
         100
       ],
       "parameters": {
-        "jsCode": "return $input.all().map((it, i) => { let d = ''; try { d = JSON.parse(it.json.choices[0].message.content).draft; } catch (e) { d = 'parse_error'; } const p = $('New Post').all()[i].json; return { json: { title: p.title, url: p.link, draft: d } }; });"
+        "jsCode": "// Skip posts where the AI reply could not be parsed; they are not queued as junk rows\nreturn $input.all().map((it, i) => { let d = ''; try { d = JSON.parse(it.json.choices[0].message.content).draft; } catch (e) { d = ''; } const p = $('New Post').all()[i].json; return { json: { title: p.title, url: p.link, draft: d } }; }).filter(i => i.json.draft);"
       }
     },
     {

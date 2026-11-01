@@ -1,20 +1,32 @@
-Inbox Triage (free sample from The Inbox Operator)
-==================================================
+Gmail Inbox Triage (free starter workflow)
+===========================================
 
-Labels every new Gmail message as urgent, lead, billing, newsletter or other.
+WHAT IT DOES
+Every 5 minutes, new unread mail is labelled urgent, lead, billing, newsletter or other by gpt-4o-mini, then marked triaged so it is never sorted twice. Failed AI replies are left unlabelled and retried.
 
-SET UP (about 10 minutes)
-1. Import inbox-triage-sample.json in n8n (Workflows > Import from file).
-2. Create 6 Gmail labels (the 5 buckets plus one named "triaged") and paste their label IDs into the Config node, including the triaged ID in LABEL_TRIAGED.
-3. Connect Gmail and OpenAI credentials, test with one email to yourself, then activate.
+NEEDS
+Gmail · OpenAI. n8n Cloud or self-hosted, n8n 1.x (import-tested on 1.123.91).
 
-NEEDS: n8n (Cloud trial or free self-hosted) and Gmail, an OpenAI API key (gpt-4o-mini; check OpenAI pricing).
-Tested: imports into n8n 1.123.
+SET UP (about 10 min)
+1. In n8n: Workflows > Import from file > pick inbox-triage-sample.json.
+2. Read the yellow note on the canvas, then fill the Config node if there is one.
+3. Open each node with a red warning and pick your own credential. Nothing is hard-coded.
+4. Test with your own email or a test form post first. Then activate.
 
-WANT THE REST?
-The Inbox Operator ($149): 7 workflows incl. reply drafts, invoice logging and a morning brief. https://payhip.com/b/syg6m
-Everything: The Operator Suite, all 21 workflows ($399) https://payhip.com/b/FG4vy
+COST
+Uses gpt-4o-mini. At OpenAI's published $0.15 per 1M input and $0.60 per 1M output tokens, a typical run costs well under a cent. See the FAQ for per-1,000 estimates.
+
+WHAT THE PAID PACK ADDS (The Inbox Operator, $149)
+- Reply drafts in your voice for anything you tag needs-reply
+- Receipts and invoices pulled into a Sheet
+- Leads turned into Sheet rows plus an acknowledgement draft
+- Follow-up nudges for quiet leads
+- A 7 AM inbox brief and a nightly promo sweep
+- 10-page setup guide
+https://payhip.com/b/syg6m
+
+Everything: The Operator Suite, all 21 workflows, $249: https://payhip.com/b/FG4vy
 
 Questions: gavindimartino3@gmail.com
 
-Made with AI assistance and reviewed by a human. Results depend on your setup and use; no income, time-saving or business outcome is guaranteed. n8n, Gmail, Google Sheets, OpenAI, LinkedIn, Typeform, Tally, Jotform and Calendly are trademarks of their owners; this is independent and not affiliated with or endorsed by them.
+Made with an AI assistant; each file passes our QA checklist and an n8n import test before release. Not tested against your accounts: test before you activate. No income, time-saving or business outcome is guaranteed. n8n, Gmail, Google Sheets, OpenAI, LinkedIn, X, Typeform, Tally and Jotform are trademarks of their owners. Not affiliated or endorsed.

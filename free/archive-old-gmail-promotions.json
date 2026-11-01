@@ -1,0 +1,147 @@
+{
+  "name": "FREE STARTER \u00b7 Archive old Gmail promotions and newsletters every night",
+  "nodes": [
+    {
+      "id": "a25badd5-8d7c-4e6f-a6a5-ba337b879d60",
+      "name": "Note 06b4",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -520,
+        -80
+      ],
+      "parameters": {
+        "content": "## Archive old Gmail promotions every night\n\n**Who it's for:** anyone whose inbox fills with promos and newsletters they never get back to.\n\n**How it works**\n1. A Schedule Trigger runs every night at 22:00.\n2. Gmail **Get many messages** finds inbox mail in the Promotions tab older than 7 days that is not starred or marked important.\n3. Gmail **Remove label** takes away the INBOX label, which archives it. Nothing is deleted; everything stays searchable in All Mail.\n\n**Set up (2 minutes)**\n1. Open each Gmail node and choose or create a Gmail OAuth2 credential.\n2. Click **Test workflow** and check which emails were picked up.\n3. Turn the workflow on.\n\n**Requirements:** a Gmail account. No AI and no paid services.\n\n**Customize:** change the search in Find Old Promos, e.g. `older_than:3d`, or add `OR label:newsletters`. Raise or lower the limit (200) to control how many messages are handled each night.",
+        "width": 460,
+        "height": 560
+      }
+    },
+    {
+      "id": "38f44a0a-cb50-40b6-bc46-90b231b78690",
+      "name": "Note 008d",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        420,
+        -80
+      ],
+      "parameters": {
+        "content": "### Safe by default\nArchives only. To undo, search `category:promotions` in All Mail and move messages back to the inbox.",
+        "width": 300,
+        "height": 180,
+        "color": 5
+      }
+    },
+    {
+      "id": "256a33cf-7b86-4ab3-8565-7dbaedf45353",
+      "name": "Nightly",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        100
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 22
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "d0c682b4-7413-4a85-840d-2b9b8de0f539",
+      "name": "Find Old Promos",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        220,
+        100
+      ],
+      "parameters": {
+        "operation": "getAll",
+        "limit": 200,
+        "simple": true,
+        "filters": {
+          "q": "in:inbox older_than:7d category:promotions -is:starred -is:important"
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "id": "a2e2d759-a5be-4179-8e03-b5675435ada4",
+      "name": "Archive",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        440,
+        100
+      ],
+      "parameters": {
+        "operation": "removeLabels",
+        "messageId": "={{ $json.id }}",
+        "labelIds": [
+          "INBOX"
+        ]
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "id": "996648eb-c168-45ee-b60d-1bffabd9b4d9",
+      "name": "Full Pack",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        700,
+        -340
+      ],
+      "parameters": {
+        "content": "### Free starter workflow\nThis is a standalone version of the pack's Promo Sweeper. The full pack adds AI triage labels, reply drafts in your voice, a receipts sheet, a lead catcher, follow-up nudges and a morning brief.\n\nhttps://payhip.com/b/syg6m\n\nMade with AI assistance; import-tested in n8n 1.123. No outcome is guaranteed.",
+        "width": 380,
+        "height": 240,
+        "color": 5
+      }
+    }
+  ],
+  "connections": {
+    "Nightly": {
+      "main": [
+        [
+          {
+            "node": "Find Old Promos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Old Promos": {
+      "main": [
+        [
+          {
+            "node": "Archive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false
+}

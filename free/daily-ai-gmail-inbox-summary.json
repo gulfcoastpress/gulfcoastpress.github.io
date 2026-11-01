@@ -1,0 +1,270 @@
+{
+  "name": "FREE STARTER \u00b7 Get a daily AI summary of yesterday's Gmail inbox with OpenAI",
+  "nodes": [
+    {
+      "id": "2b1d0f87-e522-4173-9c4a-8d84295c8145",
+      "name": "Note 3296",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -560,
+        -120
+      ],
+      "parameters": {
+        "content": "## Daily AI summary of your Gmail inbox\n\n**Who it's for:** people who want one short email each morning instead of scrolling the whole inbox.\n\n**How it works**\n1. A Schedule Trigger runs every day at 7:00.\n2. Gmail fetches up to 60 inbox messages from the last 24 hours (sender, subject and snippet only).\n3. A Code node bundles them into one list.\n4. An HTTP Request to the OpenAI Chat Completions API (gpt-4o-mini, using n8n's OpenAI credential, with no key in the node) writes a brief with three headings: NEEDS YOU TODAY, THIS WEEK and CAN WAIT.\n5. Gmail sends that brief to the address in **Config**.\n\n**Set up (5 minutes)**\n1. In **Config**, set SEND_TO to your own email address.\n2. Pick or create a Gmail OAuth2 credential in both Gmail nodes.\n3. In **Summarise**, pick or create an OpenAI credential.\n4. Click **Test workflow**, check the email you receive, then turn the workflow on.\n\n**Requirements:** Gmail and an OpenAI API key. One run is a single small request; check OpenAI's current pricing.\n\n**Customize:** change the trigger hour, the Gmail search (e.g. `newer_than:1d in:inbox -category:promotions`), or edit the headings in the Summarise prompt.",
+        "width": 500,
+        "height": 620
+      }
+    },
+    {
+      "id": "80ed1376-b219-43a4-bcb7-0c739eaa0624",
+      "name": "Note 24d9",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        -120
+      ],
+      "parameters": {
+        "content": "### Privacy note\nOnly snippets, not full bodies, are sent to OpenAI. Remove the snippet from the Bundle node if you want subjects only.",
+        "width": 320,
+        "height": 180,
+        "color": 5
+      }
+    },
+    {
+      "id": "6d88d727-214d-48a0-b84d-d122442c893d",
+      "name": "7 AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        100
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 7
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "a339bbb3-863c-4526-9535-e6353498c033",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        100
+      ],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8ebebf7a-659b-4d3f-8731-6ab02a2f189b",
+              "name": "SEND_TO",
+              "value": "you@example.com",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "4de002be-630a-43ba-8979-d876fd93711c",
+      "name": "Last 24h",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        440,
+        100
+      ],
+      "parameters": {
+        "operation": "getAll",
+        "limit": 60,
+        "simple": true,
+        "filters": {
+          "q": "newer_than:1d in:inbox"
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "id": "2db87df7-b123-4ed8-aea1-f81772007d70",
+      "name": "Bundle",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        100
+      ],
+      "parameters": {
+        "jsCode": "const lines = $input.all().map(i => `- ${i.json.From || ''} | ${i.json.Subject || ''} | ${(i.json.snippet || '').slice(0,160)}`);\nreturn [{ json: { count: lines.length, digest: lines.join('\\n') } }];"
+      }
+    },
+    {
+      "id": "6e7a3178-4881-478b-96ce-f4baa62b180a",
+      "name": "Summarise",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\"model\": \"gpt-4o-mini\", \"temperature\": 0.2, \"messages\": [{\"role\": \"system\", \"content\": \"You are an executive assistant. From the email list, write a plain-text brief with three headings: NEEDS YOU TODAY, THIS WEEK, CAN WAIT. Max 200 words. Reply as JSON: {\\\"brief\\\":string}.\"}, {\"role\": \"user\", \"content\": JSON.stringify($json.digest)}], \"response_format\": {\"type\": \"json_object\"}} }}",
+        "options": {}
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "id": "63667974-4d83-41bd-9947-2b8a87a565ca",
+      "name": "Parse Brief",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        100
+      ],
+      "parameters": {
+        "jsCode": "let b=''; try { b = JSON.parse($input.first().json.choices[0].message.content).brief; } catch(e) { b = 'Brief unavailable today.'; }\nreturn [{ json: { brief: b, count: $('Bundle').first().json.count } }];"
+      }
+    },
+    {
+      "id": "50828940-a849-4adc-aa72-e97ae67c7abe",
+      "name": "Send Brief",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1320,
+        100
+      ],
+      "parameters": {
+        "sendTo": "={{ $('Config').first().json.SEND_TO }}",
+        "subject": "={{ 'Inbox brief: ' + $json.count + ' new' }}",
+        "emailType": "text",
+        "message": "={{ $json.brief }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "id": "1f174466-fff1-48ff-983b-c8f0158a3702",
+      "name": "Full Pack",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        700,
+        -340
+      ],
+      "parameters": {
+        "content": "### Free starter workflow\nThe full pack's Morning Inbox Brief is workflow 06, alongside 6 more: Inbox Triage, Reply Drafter, Receipt & Invoice Logger, Lead Catcher, Follow-Up Chaser and Promo Sweeper, with a setup guide.\n\nhttps://payhip.com/b/syg6m\n\nMade with AI assistance; import-tested in n8n 1.123. No outcome is guaranteed.",
+        "width": 380,
+        "height": 240,
+        "color": 5
+      }
+    }
+  ],
+  "connections": {
+    "7 AM": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Last 24h",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Last 24h": {
+      "main": [
+        [
+          {
+            "node": "Bundle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bundle": {
+      "main": [
+        [
+          {
+            "node": "Summarise",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarise": {
+      "main": [
+        [
+          {
+            "node": "Parse Brief",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Brief": {
+      "main": [
+        [
+          {
+            "node": "Send Brief",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false
+}

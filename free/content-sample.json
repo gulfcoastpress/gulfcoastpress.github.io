@@ -1,0 +1,219 @@
+{
+  "name": "FREE SAMPLE \u00b7 RSS to LinkedIn Draft (from The Content Engine)",
+  "nodes": [
+    {
+      "id": "f0557220-8d66-4107-819c-eb5ca93849e0",
+      "name": "Read Me",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -360
+      ],
+      "parameters": {
+        "content": "## FREE SAMPLE \u00b7 RSS to LinkedIn Draft\nWatches your blog's RSS feed. For each new post, AI writes one LinkedIn post draft using only that post's facts, and saves it to a Google Sheet queue. Nothing is posted; you copy, edit and post it yourself.\n\nSetup: put your feed URL in New Post. Make a Sheet with a tab named Queue and headers: date, title, url, draft, status. Paste the Sheet ID in Config.\n\n**Credentials:** open each node with a red warning and pick or create your own Gmail OAuth2, Google Sheets OAuth2 and OpenAI credentials. Nothing is hard-coded. Test with your own address before you activate.",
+        "width": 560,
+        "height": 320
+      }
+    },
+    {
+      "id": "0fea3e44-521b-42dc-a103-a3294372d39e",
+      "name": "New Post",
+      "type": "n8n-nodes-base.rssFeedReadTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        100
+      ],
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyHour"
+            }
+          ]
+        },
+        "feedUrl": "https://example.com/feed"
+      }
+    },
+    {
+      "id": "3a09e114-306b-4754-abca-c05dff1b5db6",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        100
+      ],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "85a2d41d-5266-4da4-956d-45feaaca05ac",
+              "name": "SHEET_ID",
+              "value": "REPLACE_WITH_SPREADSHEET_ID",
+              "type": "string"
+            },
+            {
+              "id": "32862cff-a906-4ce0-aa2f-02d159edfef0",
+              "name": "STYLE",
+              "value": "Plain, specific, first person, short paragraphs.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "ae635301-7fd7-4701-b891-9ff9c9aa1fdf",
+      "name": "Write LinkedIn Draft",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\"model\": \"gpt-4o-mini\", \"temperature\": 0.2, \"messages\": [{\"role\": \"system\", \"content\": \"Write one LinkedIn post (120-200 words) from this blog post in the style given. Strong first line, short paragraphs, end with a question, put the URL on the last line. Use only facts in the text; never invent numbers or quotes. Reply as JSON: {\\\"draft\\\":string}.\"}, {\"role\": \"user\", \"content\": JSON.stringify({ style: $('Config').first().json.STYLE, title: $('New Post').item.json.title, url: $('New Post').item.json.link, text: ($('New Post').item.json.contentSnippet || '').slice(0, 8000) })}], \"response_format\": {\"type\": \"json_object\"}} }}",
+        "options": {}
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "id": "38620f85-4352-4319-8af0-07f0de8786d8",
+      "name": "Parse",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        100
+      ],
+      "parameters": {
+        "jsCode": "return $input.all().map((it, i) => { let d = ''; try { d = JSON.parse(it.json.choices[0].message.content).draft; } catch (e) { d = 'parse_error'; } const p = $('New Post').all()[i].json; return { json: { title: p.title, url: p.link, draft: d } }; });"
+      }
+    },
+    {
+      "id": "21d043b4-4038-47f7-9228-5a5ad418875a",
+      "name": "Add to Queue",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        880,
+        100
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Config').first().json.SHEET_ID }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Queue"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "date": "={{ $now.toISODate() }}",
+            "title": "={{ $json.title }}",
+            "url": "={{ $json.url }}",
+            "draft": "={{ $json.draft }}",
+            "status": "draft"
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "efc8ae2e-454b-46c9-80bb-98d0054ee4e5",
+      "name": "Full Pack",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        -360
+      ],
+      "parameters": {
+        "content": "### Free sample from The Content Engine\nThe full pack adds a paste-in form for transcripts, 3 LinkedIn angles per post, X posts and a thread, a newsletter draft, short-video scripts and a Sunday Mon-Fri content plan, with a 10-page guide.\n\nhttps://payhip.com/b/jBWVy",
+        "width": 380,
+        "height": 220,
+        "color": 5
+      }
+    }
+  ],
+  "connections": {
+    "New Post": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Write LinkedIn Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write LinkedIn Draft": {
+      "main": [
+        [
+          {
+            "node": "Parse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse": {
+      "main": [
+        [
+          {
+            "node": "Add to Queue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false
+}

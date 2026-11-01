@@ -1,0 +1,178 @@
+{
+  "name": "FREE SAMPLE \u00b7 Multi-Source Lead Capture lite (from The Follow-Up Engine)",
+  "nodes": [
+    {
+      "id": "bdbbf584-2507-41b2-b54d-93a91d46bf18",
+      "name": "Read Me",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -360
+      ],
+      "parameters": {
+        "content": "## FREE SAMPLE \u00b7 Multi-Source Lead Capture (lite)\nOne webhook takes leads from Typeform, Tally, Jotform, scheduling tools or any form that posts JSON, normalises them to name, email, phone, message and source, and writes them to a Google Sheet. A person who fills two forms stays one row (matched on email). No AI in this version.\n\nSetup: Leads tab headers: date, name, email, phone, source, need, status, stage. Paste Sheet ID in Config, activate, and paste the webhook's Production URL into each form tool.\n\nCredentials: pick or create your own Google Sheets OAuth2 credential. Nothing is hard-coded.",
+        "width": 560,
+        "height": 320
+      }
+    },
+    {
+      "id": "5ac18f99-8e54-4fba-a144-0f59d030fbb2",
+      "name": "Lead Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        100
+      ],
+      "webhookId": "2215387e-3339-41b6-98d5-d0b203876bb3",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-in",
+        "responseMode": "onReceived",
+        "options": {}
+      }
+    },
+    {
+      "id": "d5e70401-95d5-492c-a908-6870b8c3a7bf",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        100
+      ],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2ec40dad-18a9-46e6-a3ce-4815dfe99932",
+              "name": "SHEET_ID",
+              "value": "REPLACE_WITH_SPREADSHEET_ID",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "f2599dff-af70-4f4d-9274-eba9986ef126",
+      "name": "Normalise",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        100
+      ],
+      "parameters": {
+        "jsCode": "// Normalise Typeform, Tally, Jotform, Calendly-style or plain JSON payloads into one lead shape\nconst pick = (o, keys) => { for (const k of Object.keys(o || {})) if (keys.some(x => k.toLowerCase().includes(x))) return o[k]; return ''; };\nreturn $input.all().map(item => {\n  const b = item.json.body || item.json; let src = 'form', f = {};\n  if (b.form_response) { src = 'typeform'; for (const a of b.form_response.answers || []) { const label = (a.field?.ref || a.field?.title || a.type || '').toLowerCase(); f[label] = a.email || a.text || a.phone_number || a.number || a.choice?.label || ''; } }\n  else if (b.data?.fields) { src = 'tally'; for (const x of b.data.fields) f[(x.label || x.key || '').toLowerCase()] = Array.isArray(x.value) ? x.value.join(', ') : x.value; }\n  else if (b.rawRequest || b.formID) { src = 'jotform'; let r = b.rawRequest; try { r = typeof r === 'string' ? JSON.parse(r) : r; } catch (e) { r = {}; } for (const [k, v] of Object.entries(r || {})) f[k.toLowerCase()] = typeof v === 'object' ? Object.values(v).join(' ') : v; }\n  else if (b.payload && (b.payload.email || b.payload.invitee)) { src = 'scheduler'; const p = b.payload.invitee || b.payload; f = { name: p.name, email: p.email, message: (b.payload.questions_and_answers || []).map(q => q.answer).join(' | ') }; }\n  else { f = Object.fromEntries(Object.entries(b).map(([k, v]) => [k.toLowerCase(), v])); }\n  const email = String(pick(f, ['email', 'mail']) || '').trim().toLowerCase();\n  return { json: { name: pick(f, ['name']), email, phone: pick(f, ['phone', 'tel']), message: pick(f, ['message', 'need', 'comment', 'project', 'details']) || f.message || '', source: b.source || src } };\n}).filter(i => i.json.email.includes('@'));"
+      }
+    },
+    {
+      "id": "a525c8ef-7ef8-4cea-9784-a92a51501520",
+      "name": "Upsert Lead",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        660,
+        100
+      ],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Config').first().json.SHEET_ID }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Leads"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "email": "={{ $json.email }}",
+            "date": "={{ $now.toISODate() }}",
+            "name": "={{ $json.name }}",
+            "phone": "={{ $json.phone }}",
+            "source": "={{ $json.source }}",
+            "need": "={{ $json.message }}",
+            "status": "new",
+            "stage": "new"
+          },
+          "matchingColumns": [
+            "email"
+          ],
+          "schema": []
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "1625d778-2d75-47b2-8af8-c8e13396da64",
+      "name": "Full Pack",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        620,
+        -360
+      ],
+      "parameters": {
+        "content": "### Free sample from The Follow-Up Engine\nThe full version adds AI lead scoring, plus 6 more workflows: Speed-to-Lead Draft, Stage-Based Nurture, Reply Detector, Review & Referral Ask, Weekly Pipeline Report and Opt-Out Guard, with a 10-page guide.\n\nhttps://payhip.com/b/Wb8st",
+        "width": 380,
+        "height": 220,
+        "color": 5
+      }
+    }
+  ],
+  "connections": {
+    "Lead Webhook": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Normalise",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalise": {
+      "main": [
+        [
+          {
+            "node": "Upsert Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false
+}

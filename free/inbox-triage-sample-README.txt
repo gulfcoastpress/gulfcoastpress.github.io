@@ -2,7 +2,7 @@ Gmail Inbox Triage (free starter workflow)
 ===========================================
 
 WHAT IT DOES
-Every 5 minutes, new unread mail is labelled urgent, lead, billing, newsletter or other by gpt-4o-mini, then marked triaged so it is never sorted twice. Failed AI replies are left unlabelled and retried.
+Every 5 minutes, new unread mail is labelled urgent, lead, billing, newsletter or other by gpt-4o-mini, then marked triaged so it is never sorted twice. If the AI reply is broken, or names a category that isn't one of the 5 buckets, the email is left unlabelled (no triaged label) and retried on the next run instead of being filed under other. Genuine "other" mail is still labelled other + triaged.
 
 NEEDS
 Gmail · OpenAI. n8n Cloud or self-hosted, n8n 1.x (import-tested on 1.123.91).

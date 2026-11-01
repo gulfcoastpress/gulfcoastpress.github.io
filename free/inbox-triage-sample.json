@@ -11,7 +11,7 @@
         -340
       ],
       "parameters": {
-        "content": "## 01 \u00b7 Inbox Triage\nEvery 5 minutes, new unread mail is sorted into one of five buckets (urgent, lead, billing, newsletter, other) and labelled in Gmail.\n\n**Setup:** create 5 Gmail labels, then paste each label ID into **Config** (Gmail > Settings > Labels, or run a Gmail 'Get many labels' node once).\n\n**Credentials:** open each node with a red warning and pick or create your own Gmail OAuth2, Google Sheets OAuth2 and OpenAI credentials. Nothing is hard-coded. Test with your own address before you activate.",
+        "content": "## 01 \u00b7 Inbox Triage\nEvery 5 minutes, new unread mail is sorted into one of five buckets (urgent, lead, billing, newsletter, other) and labelled in Gmail.\n\n**Setup:** create 6 Gmail labels: one per bucket plus one named `triaged`. Paste each label ID into **Config**, including the `triaged` label's ID in LABEL_TRIAGED (Gmail > Settings > Labels, or run a Gmail 'Get many labels' node once). The trigger skips mail labelled `triaged`, so without it the same email gets sorted again on every run.\n\n**Credentials:** open each node with a red warning and pick or create your own Gmail OAuth2, Google Sheets OAuth2 and OpenAI credentials. Nothing is hard-coded. Test with your own address before you activate.",
         "width": 560,
         "height": 300
       }
@@ -91,6 +91,12 @@
               "name": "LABEL_OTHER",
               "value": "REPLACE_LABEL_ID",
               "type": "string"
+            },
+            {
+              "id": "d325e374-1226-4214-b23e-b56c180077e9",
+              "name": "LABEL_TRIAGED",
+              "value": "REPLACE_TRIAGED_LABEL_ID",
+              "type": "string"
             }
           ]
         },
@@ -146,7 +152,7 @@
         100
       ],
       "parameters": {
-        "jsCode": "const c = $('Config').first().json;\nconst map = { urgent: c.LABEL_URGENT, lead: c.LABEL_LEAD, billing: c.LABEL_BILLING, newsletter: c.LABEL_NEWSLETTER };\nreturn $input.all().map(i => ({ json: { ...i.json, labelId: map[i.json.category] || c.LABEL_OTHER } }));"
+        "jsCode": "const c = $('Config').first().json;\nconst map = { urgent: c.LABEL_URGENT, lead: c.LABEL_LEAD, billing: c.LABEL_BILLING, newsletter: c.LABEL_NEWSLETTER };\n// Only label mail the model classified cleanly; failed parses stay untriaged and are retried next run\nreturn $input.all()\n  .filter(i => !i.json.parse_error && i.json.category && i.json.messageId)\n  .map(i => ({ json: { ...i.json, labelId: map[i.json.category] || c.LABEL_OTHER, triagedLabelId: c.LABEL_TRIAGED } }));"
       }
     },
     {
@@ -161,7 +167,7 @@
       "parameters": {
         "operation": "addLabels",
         "messageId": "={{ $json.messageId }}",
-        "labelIds": "={{ [$json.labelId] }}"
+        "labelIds": "={{ [$json.labelId, $json.triagedLabelId] }}"
       },
       "credentials": {
         "gmailOAuth2": {

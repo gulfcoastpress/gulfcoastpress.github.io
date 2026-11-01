@@ -5,7 +5,7 @@ Labels every new Gmail message as urgent, lead, billing, newsletter or other.
 
 SET UP (about 10 minutes)
 1. Import inbox-triage-sample.json in n8n (Workflows > Import from file).
-2. Create 5 Gmail labels and paste their label IDs into the Config node.
+2. Create 6 Gmail labels (the 5 buckets plus one named "triaged") and paste their label IDs into the Config node, including the triaged ID in LABEL_TRIAGED.
 3. Connect Gmail and OpenAI credentials, test with one email to yourself, then activate.
 
 NEEDS: n8n (Cloud trial or free self-hosted) and Gmail, an OpenAI API key (gpt-4o-mini; check OpenAI pricing).

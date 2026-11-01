@@ -2,7 +2,7 @@
   "name": "01 \u00b7 Inbox Triage",
   "nodes": [
     {
-      "id": "6fedba50-348f-48b2-8f4d-e96df72c5918",
+      "id": "c73df89f-472a-4017-ad70-3943ecf134a8",
       "name": "Read Me",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
@@ -11,13 +11,13 @@
         -340
       ],
       "parameters": {
-        "content": "## 01 \u00b7 Inbox Triage\nEvery 5 minutes, new unread mail is sorted into one of five buckets (urgent, lead, billing, newsletter, other) and labelled in Gmail.\n\n**Setup:** create 5 Gmail labels, then paste each label ID into **Config** (Gmail > Settings > Labels, or run a Gmail 'Get many labels' node once).\n\n**Credentials:** open each node with a red warning and pick or create your own Gmail OAuth2, Google Sheets OAuth2 and OpenAI credentials. Nothing is hard-coded. Test with your own address before you activate.",
+        "content": "## 01 \u00b7 Inbox Triage\nEvery 5 minutes, new unread mail is sorted into one of five buckets (urgent, lead, billing, newsletter, other) and labelled in Gmail.\n\n**Setup:** create 6 Gmail labels: one per bucket plus one named `triaged`. Paste each label ID into **Config**, including the `triaged` label's ID in LABEL_TRIAGED (Gmail > Settings > Labels, or run a Gmail 'Get many labels' node once). The trigger skips mail labelled `triaged`, so without it the same email gets sorted again on every run.\n\n**Credentials:** open each node with a red warning and pick or create your own Gmail OAuth2, Google Sheets OAuth2 and OpenAI credentials. Nothing is hard-coded. Test with your own address before you activate.",
         "width": 560,
         "height": 300
       }
     },
     {
-      "id": "5e9a6913-ff6c-4229-af4a-e17404cc4e0f",
+      "id": "2f3070cc-2591-423e-8f4a-16d6fe5dabdd",
       "name": "New Mail",
       "type": "n8n-nodes-base.gmailTrigger",
       "typeVersion": 1.2,
@@ -49,7 +49,7 @@
       }
     },
     {
-      "id": "d60dadcb-3e54-465b-a28f-b6eb8b4068bb",
+      "id": "39d288c5-ebe4-4b7a-ab56-27ef87b72370",
       "name": "Config",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
@@ -63,33 +63,39 @@
         "assignments": {
           "assignments": [
             {
-              "id": "7edad5f9-ffcf-4669-90d8-fb0c08c94b27",
+              "id": "cca85b97-54d5-4a42-9820-c23f632251cd",
               "name": "LABEL_URGENT",
               "value": "REPLACE_LABEL_ID",
               "type": "string"
             },
             {
-              "id": "1764c3d9-1097-4c40-92cb-e3c5aaf9fbb8",
+              "id": "135c60cb-009e-4cde-b755-c219dd023b98",
               "name": "LABEL_LEAD",
               "value": "REPLACE_LABEL_ID",
               "type": "string"
             },
             {
-              "id": "37da5cd5-e0f5-4e91-9691-e4c5ffe699bc",
+              "id": "9c9cc5a2-569b-460d-acab-ec3d36c2f4f6",
               "name": "LABEL_BILLING",
               "value": "REPLACE_LABEL_ID",
               "type": "string"
             },
             {
-              "id": "f9e65b83-88ca-4591-98dd-11640ae81c90",
+              "id": "f231fb9f-3bb0-404d-b44e-fe18c2266809",
               "name": "LABEL_NEWSLETTER",
               "value": "REPLACE_LABEL_ID",
               "type": "string"
             },
             {
-              "id": "5b3ca2c7-34da-4207-89d4-b4af1bb83e60",
+              "id": "cb0081d1-27d5-4f48-84da-404959af739c",
               "name": "LABEL_OTHER",
               "value": "REPLACE_LABEL_ID",
+              "type": "string"
+            },
+            {
+              "id": "57acc234-d3f0-418d-9f65-c5e471809f21",
+              "name": "LABEL_TRIAGED",
+              "value": "REPLACE_TRIAGED_LABEL_ID",
               "type": "string"
             }
           ]
@@ -98,7 +104,7 @@
       }
     },
     {
-      "id": "1c035b77-e5be-4d6f-8ee0-3f7b894b11db",
+      "id": "9d7bb658-24df-4799-a38c-5902772504db",
       "name": "Classify",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -124,7 +130,7 @@
       }
     },
     {
-      "id": "ef3da515-fa22-4d3d-bed0-7b33bc7748d6",
+      "id": "68773fb6-3828-410c-9009-8a1fbe9a3e78",
       "name": "Parse",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -137,7 +143,7 @@
       }
     },
     {
-      "id": "79e4d963-5bcb-4b2c-a359-dc45c2cd1f74",
+      "id": "3881ee95-3b5b-4a86-8329-6d0d5e04def1",
       "name": "Pick Label",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -146,11 +152,11 @@
         100
       ],
       "parameters": {
-        "jsCode": "const c = $('Config').first().json;\nconst map = { urgent: c.LABEL_URGENT, lead: c.LABEL_LEAD, billing: c.LABEL_BILLING, newsletter: c.LABEL_NEWSLETTER };\nreturn $input.all().map(i => ({ json: { ...i.json, labelId: map[i.json.category] || c.LABEL_OTHER } }));"
+        "jsCode": "const c = $('Config').first().json;\nconst map = { urgent: c.LABEL_URGENT, lead: c.LABEL_LEAD, billing: c.LABEL_BILLING, newsletter: c.LABEL_NEWSLETTER };\n// Only label mail the model classified cleanly; failed parses stay untriaged and are retried next run\nreturn $input.all()\n  .filter(i => !i.json.parse_error && i.json.category && i.json.messageId)\n  .map(i => ({ json: { ...i.json, labelId: map[i.json.category] || c.LABEL_OTHER, triagedLabelId: c.LABEL_TRIAGED } }));"
       }
     },
     {
-      "id": "4d6021a7-ee9f-4c09-a67b-dd78c08a75e2",
+      "id": "1bca4166-e3dd-4fde-87fa-01960c29c5c4",
       "name": "Apply Label",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
@@ -161,7 +167,7 @@
       "parameters": {
         "operation": "addLabels",
         "messageId": "={{ $json.messageId }}",
-        "labelIds": "={{ [$json.labelId] }}"
+        "labelIds": "={{ [$json.labelId, $json.triagedLabelId] }}"
       },
       "credentials": {
         "gmailOAuth2": {
